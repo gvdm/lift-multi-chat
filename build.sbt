@@ -19,6 +19,8 @@ libraryDependencies ++= {
   Seq(
     "net.liftweb"		%% "lift-webkit"			% liftVersion		% "compile",
     "net.liftmodules"	        %% ("lift-jquery-module_"+liftEdition)  % "2.9-SNAPSHOT",
+    "net.liftweb" %% "lift-mongodb-record" % liftVersion,
+    "net.liftmodules" %% ("mongoauth_" + liftEdition) % "0.6-SNAPSHOT",
     "org.eclipse.jetty"         % "jetty-webapp"		     	% "8.1.13.v20130916" % "container,test",
     "org.eclipse.jetty.orbit"   % "javax.servlet"			% "3.0.0.v201112011016" % "container,compile" artifacts Artifact("javax.servlet", "jar", "jar")
   )
