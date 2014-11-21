@@ -1,0 +1,7 @@
+/bin
+target/
+.settings/
+.cache
+*~
+.classpath
+src/main/webapp/styles/*
