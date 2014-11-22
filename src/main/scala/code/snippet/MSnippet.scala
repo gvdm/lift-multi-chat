@@ -9,6 +9,7 @@ import code.lib.currentM
 
 class MSnippet(m: M) {
   currentM.set(Full(m))
+  println("set current M to "+m.id)
   
   def render = "#m-id *" #> m.id
 }

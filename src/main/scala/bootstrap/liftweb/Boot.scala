@@ -16,6 +16,8 @@ import net.liftweb.sitemap.Loc._
 import net.liftweb.sitemap.LocPath.stringToLocPath
 import net.liftweb.sitemap.Menu
 import net.liftweb.sitemap.SiteMap
+import net.liftmodules.mongoauth.Locs
+import net.liftmodules.mongoauth.Locs.RequireNotLoggedIn
 
 import code.model.M
 import code.model.User
@@ -39,6 +41,9 @@ class Boot {
       Menu.i("Home") / "index", // the simple way to declare a menu
 
       Menu.param[M]("M", "M", s ⇒ Full(M(s)), m => m.id) / "m" / *,
+      Menu.i("Register") / "user" / "register" >> RequireNotLoggedIn,
+      Menu.i("Login") / "user" / "login" >> RequireNotLoggedIn,
+      
       // more complex because this menu allows anything in the
       // /static path to be visible
       Menu(Loc("Static", Link(List("static"), true, "/static/index"),

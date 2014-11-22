@@ -48,14 +48,21 @@ class ChatUser extends CometActor with CometListener with Logger {
   private var chatServer: ChatServer = getChatServer()
   
   def getChatServer() = currentM.get match {
-    case Full(m) => ChatRoomManager.serveByM(m)
-    case _ => throw new Exception("shouldn't try instantiating chat without a M")
+    case Full(m) => {
+      println("current m is "+m.id)
+      ChatRoomManager.serveByM(m)
+    }
+    case _ => {
+      println ("NO CURRENT M")
+      throw new Exception("shouldn't try instantiating chat without a M")
+    }
   }
   def registerWith = chatServer
   
   private var messages: List[ChatMessage] = Nil
 
   private val user = User.currentUser.getOrElse(throw new Exception("chat should only be served to logged in users"))
+  println("current user is "+user.username.value)
   
   override def localSetup() = {
     super.localSetup()
