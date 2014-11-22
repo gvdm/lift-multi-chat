@@ -1,7 +1,5 @@
 package code.comet
 
-package tv.wildearth.comet
-
 import net.liftweb.actor.LiftActor
 import net.liftweb.common._
 import net.liftweb.http._
