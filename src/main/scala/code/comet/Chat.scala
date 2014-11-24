@@ -59,13 +59,13 @@ class ChatUser extends CometActor with CometListener with Logger {
   
   private var messages: List[ChatMessage] = Nil
 
-  private val user = User.currentUser.getOrElse(throw new Exception("chat should only be served to logged in users"))
-  println("current user is "+user.username.value)
+  def user = User.currentUser
+  println("current user is "+user.map(_.username.value))
   
   override def localSetup() = {
     super.localSetup()
 
-    info("localSetup(%s)" format user.firstName)
+    info("localSetup(%s)" format user.map(_.firstName))
     //sendMessage(NewUser(user))
   }
 
@@ -94,7 +94,7 @@ class ChatUser extends CometActor with CometListener with Logger {
     "#message" #> SHtml.text(message, str => message = str) &
     "#send-message" #> SHtml.ajaxSubmit("Send", () => {
       if (message.nonEmpty) {
-         chatServer! ChatMessage(message, user, DateTime.now)
+         chatServer! ChatMessage(message, user.getOrElse(throw new Exception("non logged in user sending message - what?")), DateTime.now)
       }
       SetValueAndFocus("message", "")
     })
