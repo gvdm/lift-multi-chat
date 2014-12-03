@@ -19,15 +19,13 @@ import org.joda.time.format.DateTimeFormatter
 import org.joda.time.format.DateTimeFormat
 
 case class NewChatRoom(cr: ChatRoom)
-case class ChatMessage(message: String, from: User, timestamp: DateTime)
+case class ChatMessage(message: String, from: Box[User], timestamp: DateTime)
 //case class UserJoin(user: User)
 
 class ChatServer(cr: ChatRoom) extends LiftActor with ListenerManager with Loggable {
   val chatRoom = cr
   
   logger.info("created chat server for "+cr.id.value)
-  
-  var users : List[User] = Nil
 
   private var messages = List[ChatMessage]()
   
@@ -48,7 +46,7 @@ class ChatUser extends CometActor with CometListener with Loggable {
   def registerWith = _chatServer
 
   private var messages: List[ChatMessage] = Nil
-
+  
   def user = User.currentUser
 
   override def localSetup() = {
@@ -63,7 +61,7 @@ class ChatUser extends CometActor with CometListener with Loggable {
 
   override def lowPriority = {
     case msg: ChatMessage ⇒ {
-      logger.info("got chat msg in "+htmlIdName+" from "+msg.from.username.value)
+      logger.info("got chat msg in "+htmlIdName+" from "+msg.from.map(_.username.value))
       messages ::= msg
       partialUpdate(AppendHtml(htmlIdName()+"-message-list", renderMessage(msg)))
     }
@@ -82,7 +80,7 @@ class ChatUser extends CometActor with CometListener with Loggable {
     <li>
       <span>{ msg.timestamp.toString(DateTimeFormat.shortTime()) }</span>
       &nbsp;
-      <span>{ msg.from.username }</span>
+      <span>{ msg.from.map(_.username) }</span>
       &nbsp;
       <span float="right">{ msg.message }</span>
     </li>
@@ -95,7 +93,7 @@ class ChatUser extends CometActor with CometListener with Loggable {
     "@message" #> SHtml.text(message, str ⇒ message = str, "id" -> (htmlIdName() + "-message-input")) &
     "@send-message" #> SHtml.ajaxSubmit("Send", () ⇒ {
       if (message.nonEmpty) {
-        _chatServer ! ChatMessage(message, user.getOrElse(throw new Exception("non logged in user sending message - what?")), DateTime.now)
+        _chatServer ! ChatMessage(message, user, DateTime.now)
       }
       SetValueAndFocus(htmlIdName() + "-message-input", "")
     })
