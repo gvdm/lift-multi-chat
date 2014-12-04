@@ -9,23 +9,21 @@ import net.liftweb.http.js.jquery.JqJsCmds._
 import net.liftweb.util._
 import net.liftweb.util.Helpers._
 import code.model.M
-import code.model.User
 import scala.xml.NodeSeq
 import org.joda.time.DateTime
 import code.model.ChatRoom
 import code.snippet.ChatBox
-import code.snippet.UserSnippets
 import org.joda.time.format.DateTimeFormatter
 import org.joda.time.format.DateTimeFormat
 
 case class NewChatRoom(cr: ChatRoom)
-case class ChatMessage(message: String, from: Box[User], timestamp: DateTime)
+case class ChatMessage(message: String, timestamp: DateTime)
 //case class UserJoin(user: User)
 
 class ChatServer(cr: ChatRoom) extends LiftActor with ListenerManager with Loggable {
   val chatRoom = cr
   
-  logger.info("created chat server for "+cr.id.value)
+  logger.info("created chat server for "+cr.id)
 
   private var messages = List[ChatMessage]()
   
@@ -47,8 +45,6 @@ class ChatUser extends CometActor with CometListener with Loggable {
 
   private var messages: List[ChatMessage] = Nil
   
-  def user = User.currentUser
-
   override def localSetup() = {
     _chatServer = name match {
       case Full(id) ⇒ ChatRoomManager.serve(id)
@@ -56,12 +52,12 @@ class ChatUser extends CometActor with CometListener with Loggable {
     }
     super.localSetup()
 
-    logger.info("localSetup of "+user.map(_.username.value) + " for "+htmlIdName)
+    logger.info("localSetup for "+htmlIdName)
   }
 
   override def lowPriority = {
     case msg: ChatMessage ⇒ {
-      logger.info("got chat msg in "+htmlIdName+" from "+msg.from.map(_.username.value))
+      logger.info("got chat msg of"+msg.message+" in "+htmlIdName)
       messages ::= msg
       partialUpdate(AppendHtml(htmlIdName()+"-message-list", renderMessage(msg)))
     }
@@ -80,8 +76,6 @@ class ChatUser extends CometActor with CometListener with Loggable {
     <li>
       <span>{ msg.timestamp.toString(DateTimeFormat.shortTime()) }</span>
       &nbsp;
-      <span>{ msg.from.map(_.username) }</span>
-      &nbsp;
       <span float="right">{ msg.message }</span>
     </li>
 
@@ -93,7 +87,7 @@ class ChatUser extends CometActor with CometListener with Loggable {
     "@message" #> SHtml.text(message, str ⇒ message = str, "id" -> (htmlIdName() + "-message-input")) &
     "@send-message" #> SHtml.ajaxSubmit("Send", () ⇒ {
       if (message.nonEmpty) {
-        _chatServer ! ChatMessage(message, user, DateTime.now)
+        _chatServer ! ChatMessage(message, DateTime.now)
       }
       SetValueAndFocus(htmlIdName() + "-message-input", "")
     })
@@ -107,7 +101,7 @@ class ChatControls extends CometActor with CometListener with Loggable {
  
   def render = {
     var chatName = ""
-    "#chat-list li *" #> ChatRoom.findAll.map(openChatButton(_)) &
+    "#chat-list li *" #> ChatRoomManager.chatServers.map(cs => openChatButton(cs.chatRoom)) &
     "#chat-name" #> text("", chatName = _) &
     "#make-chat-room" #> ajaxSubmit("make chat", () => {
       val chatId = StringHelpers.clean(chatName)
@@ -120,12 +114,12 @@ class ChatControls extends CometActor with CometListener with Loggable {
   
   def newOpenChatButton(cr: ChatRoom) = AppendHtml("chat-list", <li class="chat-room">{openChatButton(cr)}</li>)
   
-  def openChatButton(cr: ChatRoom) = ajaxButton("Open "+cr.name.value, () => {
-    if (openChats.contains(cr.id.value)) {
-      Focus(cr.id.value + "-message-input")
+  def openChatButton(cr: ChatRoom) = ajaxButton("Open "+cr.name, () => {
+    if (openChats.contains(cr.id)) {
+      Focus(cr.id + "-message-input")
     } else {
-      openChats += cr.id.value
-      AppendHtml("open-chat-rooms", ChatBox(cr.id.value))
+      openChats += cr.id
+      AppendHtml("open-chat-rooms", ChatBox(cr.id))
     }
   })
   
@@ -145,36 +139,27 @@ class ChatControls extends CometActor with CometListener with Loggable {
 }
 
 object ChatRoomManager extends LiftActor with ListenerManager with Logger {
-  private var chatServers = scala.collection.mutable.Map[String, ChatServer](ChatRoom.findAll.map(cr => cr.id.value -> new ChatServer(cr)): _*)
+  private var _chatServers = scala.collection.mutable.Map[String, ChatServer]()
   
-  def createUpdate = chatServers
+  def chatServers() = synchronized { _chatServers.values }
+  
+  def createUpdate = _chatServers
   
   def createChatRoom(id: String, name: String) = synchronized {
-      info("added new ChatServer for "+id)
-      ChatRoom.find(id) match {
-        case Empty => {
-          val cr = ChatRoom.createRecord.id(id).name(name)
-          User.currentUser match {
-            case Full(u) => cr.owner(u.id.value)
-          }
-          
-          sendListenersMessage(NewChatRoom(cr))
-          cr.save(true)
-        }
-        case Full(cr) => cr
-      }
-    }
+    info("added new ChatServer for "+id)
+
+    val cr = ChatRoom(id, name)
+    sendListenersMessage(NewChatRoom(cr))
+    cr
+  }
 
   def serve(id: String): ChatServer = synchronized {
-    chatServers.get(id) match {
+    _chatServers.get(id) match {
       case Some(server) => server
       case None ⇒ {
-        val cr = ChatRoom.find(id) match {
-          case Full(cr) ⇒ cr
-          case Empty    ⇒ createChatRoom(id, id)
-        }
+        val cr = createChatRoom(id, id)
         val newServer = new ChatServer(cr)
-        chatServers.put(id, newServer)
+        _chatServers.put(id, newServer)
         newServer
       }
     }

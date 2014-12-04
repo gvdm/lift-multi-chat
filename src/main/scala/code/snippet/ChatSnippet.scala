@@ -6,7 +6,6 @@ import net.liftweb.http._
 import net.liftweb.http.SHtml._
 import net.liftweb.http.js.JsCmds._
 import net.liftweb.http.js.jquery.JqJsCmds._
-import code.model.User
 import net.liftweb.util.StringHelpers
 import code.model.M
   
